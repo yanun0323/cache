@@ -1,3 +1,27 @@
+// Package cache provides a lightweight, generic, and thread-safe in-memory cache implementation.
+//
+// This package supports any comparable key types and any value types, offering TTL (Time To Live) support
+// for both default and per-item expiration. It includes background cleanup to prevent memory leaks
+// and ensures all operations are thread-safe.
+//
+// Basic usage example:
+//
+//	c := cache.New[string, int](5*time.Minute, func(key string) (int, error) {
+//		// This function is called when cache misses occur
+//		return len(key), nil
+//	})
+//
+//	// Get a value (will trigger the query function on first call)
+//	val, err := c.Get("hello")
+//
+//	// Get a value with custom TTL
+//	val, err := c.Get("hello", 10*time.Second)
+//
+//	// Set a value with default TTL
+//	c.Set("count", 42)
+//
+//	// Set a value with custom TTL
+//	c.Set("shortlived", 100, 10*time.Second)
 package cache
 
 import (
@@ -10,6 +34,9 @@ const (
 	_defaultCleanupInterval = 15 * time.Minute
 )
 
+// Cache is a generic in-memory cache implementation with TTL support.
+// It provides thread-safe operations for storing and retrieving values
+// with automatic expiration and background cleanup.
 type Cache[K comparable, V any] struct {
 	mu         sync.Mutex
 	items      map[K]*cacheItem[V]
@@ -23,6 +50,14 @@ type cacheItem[V any] struct {
 	val        V
 }
 
+// New creates a new Cache instance with the given default TTL and query function.
+// The cache will automatically clean up expired items in the background.
+//
+// Parameters:
+//   - defaultExpiration: The default TTL for items in the cache.
+//   - query: A function that takes a key and returns a value and an error.
+//   - cleanupInterval: The interval at which the cache should clean up expired items.
+//     If not provided, the default interval of 15 minutes will be used.
 func New[K comparable, V any](defaultExpiration time.Duration, query func(key K) (V, error), cleanupInterval ...time.Duration) *Cache[K, V] {
 	c := &Cache[K, V]{
 		items:      make(map[K]*cacheItem[V]),
@@ -66,10 +101,25 @@ func (c *Cache[K, V]) getItem(key K) *cacheItem[V] {
 	return item
 }
 
+// Get retrieves a value from the cache.
+// If the value is not in the cache, the query function will be called to get the value.
+// The value will be cached and returned.
+//
+// Parameters:
+//   - key: The key of the value to retrieve.
+//   - ttl: The TTL for the value. If not provided, the default TTL will be used.
 func (c *Cache[K, V]) Get(key K, ttl ...time.Duration) (V, error) {
 	return getAndUpdateItemFromQuery(key, c.getItem(key), c.query, firstOrDefault(c.defaultTTL, ttl...).Nanoseconds())
 }
 
+// Set adds a value to the cache.
+// If a TTL is provided, the value will be cached with that TTL.
+// If no TTL is provided, the default TTL will be used.
+//
+// Parameters:
+//   - key: The key of the value to set.
+//   - value: The value to set in the cache.
+//   - ttl: The TTL for the value. If not provided, the default TTL will be used.
 func (c *Cache[K, V]) Set(key K, value V, ttl ...time.Duration) {
 	if !isZeroTTL(ttl...) {
 		updateItem(key, value, c.getItem(key), firstOrDefault(c.defaultTTL, ttl...).Nanoseconds())
