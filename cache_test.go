@@ -110,7 +110,7 @@ func TestCacheGetGood(t *testing.T) {
 func TestCacheCleanup(t *testing.T) {
 	cache := New(time.Second, func(key string) (int, error) {
 		return len(key), nil
-	}, 3*time.Second).(*cache[string, int])
+	}, 3*time.Second)
 
 	cache.Set("test", 10, time.Second)
 	cache.Set("test2", 12, time.Second)

@@ -10,18 +10,11 @@ const (
 	_defaultCleanupInterval = 15 * time.Minute
 )
 
-type querier[K comparable, V any] func(key K) (V, error)
-
-type Cache[K comparable, V any] interface {
-	Get(key K, ttl ...time.Duration) (V, error)
-	Set(key K, value V, ttl ...time.Duration)
-}
-
-type cache[K comparable, V any] struct {
+type Cache[K comparable, V any] struct {
 	mu         sync.Mutex
 	items      map[K]*cacheItem[V]
 	defaultTTL time.Duration
-	query      querier[K, V]
+	query      func(key K) (V, error)
 }
 
 type cacheItem[V any] struct {
@@ -30,8 +23,8 @@ type cacheItem[V any] struct {
 	val        V
 }
 
-func New[K comparable, V any](defaultExpiration time.Duration, query querier[K, V], cleanupInterval ...time.Duration) Cache[K, V] {
-	c := &cache[K, V]{
+func New[K comparable, V any](defaultExpiration time.Duration, query func(key K) (V, error), cleanupInterval ...time.Duration) *Cache[K, V] {
+	c := &Cache[K, V]{
 		items:      make(map[K]*cacheItem[V]),
 		defaultTTL: defaultExpiration,
 		query:      query,
@@ -50,7 +43,7 @@ func New[K comparable, V any](defaultExpiration time.Duration, query querier[K, 
 	return c
 }
 
-func (c *cache[K, V]) cleanup() {
+func (c *Cache[K, V]) cleanup() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -60,7 +53,7 @@ func (c *cache[K, V]) cleanup() {
 		}
 	}
 }
-func (c *cache[K, V]) getItem(key K) *cacheItem[V] {
+func (c *Cache[K, V]) getItem(key K) *cacheItem[V] {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	item, ok := c.items[key]
@@ -73,11 +66,11 @@ func (c *cache[K, V]) getItem(key K) *cacheItem[V] {
 	return item
 }
 
-func (c *cache[K, V]) Get(key K, ttl ...time.Duration) (V, error) {
+func (c *Cache[K, V]) Get(key K, ttl ...time.Duration) (V, error) {
 	return getAndUpdateItemFromQuery(key, c.getItem(key), c.query, firstOrDefault(c.defaultTTL, ttl...).Nanoseconds())
 }
 
-func (c *cache[K, V]) Set(key K, value V, ttl ...time.Duration) {
+func (c *Cache[K, V]) Set(key K, value V, ttl ...time.Duration) {
 	if !isZeroTTL(ttl...) {
 		updateItem(key, value, c.getItem(key), firstOrDefault(c.defaultTTL, ttl...).Nanoseconds())
 	}
@@ -107,7 +100,7 @@ func updateItem[K comparable, V any](key K, val V, item *cacheItem[V], ttl int64
 	item.expiration.Store(now() + ttl)
 }
 
-func getAndUpdateItemFromQuery[K comparable, V any](key K, item *cacheItem[V], query querier[K, V], ttl int64) (V, error) {
+func getAndUpdateItemFromQuery[K comparable, V any](key K, item *cacheItem[V], query func(key K) (V, error), ttl int64) (V, error) {
 	nowTime := now()
 	if item.expiration.Load() > nowTime {
 		return item.val, nil
