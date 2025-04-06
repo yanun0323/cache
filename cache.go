@@ -182,6 +182,10 @@ func getAndUpdateItemFromQuery[K comparable, V any](key K, item *cacheItem[V], q
 		return item.val, err
 	}
 
+	if ttl == 0 {
+		return val, nil
+	}
+
 	item.val = val
 	if ttl < 0 {
 		item.expiration.Store(math.MaxInt64)
