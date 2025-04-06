@@ -126,6 +126,13 @@ func (c *Cache[K, V]) Set(key K, value V, ttl ...time.Duration) {
 	}
 }
 
+// Delete removes a value from the cache.
+func (c *Cache[K, V]) Delete(key K) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.items, key)
+}
+
 func isZeroTTL(ttl ...time.Duration) bool {
 	return len(ttl) != 0 && ttl[0] == 0
 }
