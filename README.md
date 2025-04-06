@@ -12,7 +12,7 @@ A lightweight, generic, and thread-safe in-memory cache implementation for Go.
 
 ## Requirements
 
-- Go 1.23+
+- Go 1.20+
 
 ## Installation
 

@@ -1,3 +1,3 @@
 module github.com/yanun0323/cache
 
-go 1.23.0
+go 1.20.0
