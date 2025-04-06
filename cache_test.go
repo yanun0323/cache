@@ -34,6 +34,14 @@ func TestCacheGetGood(t *testing.T) {
 			expectedError:      false,
 		},
 		{
+			desc:               "one query with getter forever ttl",
+			defaultTTL:         time.Second,
+			getterTTL:          []time.Duration{-1},
+			waitBetweenGet:     3 * time.Second,
+			expectedQueryCount: 1,
+			expectedError:      false,
+		},
+		{
 			desc:               "two queries with default ttl",
 			defaultTTL:         time.Second,
 			getterTTL:          []time.Duration{},
@@ -85,10 +93,10 @@ func TestCacheGetGood(t *testing.T) {
 			result, err := cache.Get("test", tc.getterTTL...)
 			if tc.expectedError {
 				requireError(t, err)
-				requireEqual(t, result, 0)
+				requireEqual(t, 0, result)
 			} else {
 				requireNoError(t, err)
-				requireEqual(t, result, 4)
+				requireEqual(t, 4, result)
 			}
 
 			<-time.After(tc.waitBetweenGet)
@@ -96,13 +104,13 @@ func TestCacheGetGood(t *testing.T) {
 			result, err = cache.Get("test", tc.getterTTL...)
 			if tc.expectedError {
 				requireError(t, err)
-				requireEqual(t, result, 0)
+				requireEqual(t, 0, result)
 			} else {
 				requireNoError(t, err)
-				requireEqual(t, result, 4)
+				requireEqual(t, 4, result)
 			}
 
-			requireEqual(t, count.Load(), tc.expectedQueryCount)
+			requireEqual(t, tc.expectedQueryCount, count.Load())
 		})
 	}
 }
@@ -115,11 +123,11 @@ func TestCacheCleanup(t *testing.T) {
 	cache.Set("test", 10, time.Second)
 	cache.Set("test2", 12, time.Second)
 
-	requireEqual(t, len(cache.items), 2)
+	requireEqual(t, 2, len(cache.items))
 
 	<-time.After(5 * time.Second)
 
-	requireEqual(t, len(cache.items), 0)
+	requireEqual(t, 0, len(cache.items))
 
 }
 
@@ -138,12 +146,12 @@ func TestCacheGetParallelGood(t *testing.T) {
 			defer wg.Done()
 			result, err := cache.Get("test")
 			requireNoError(t, err)
-			requireEqual(t, result, 4)
+			requireEqual(t, 4, result)
 		}()
 	}
 
 	wg.Wait()
-	requireEqual(t, count.Load(), 1)
+	requireEqual(t, 1, count.Load())
 }
 
 func TestCacheSet(t *testing.T) {
@@ -154,17 +162,17 @@ func TestCacheSet(t *testing.T) {
 	cache.Set("test", 10)
 	result, err := cache.Get("test")
 	requireNoError(t, err)
-	requireEqual(t, result, 10)
+	requireEqual(t, 10, result)
 
 	result, err = cache.Get("test")
 	requireNoError(t, err)
-	requireEqual(t, result, 10)
+	requireEqual(t, 10, result)
 
 	<-time.After(3 * time.Second)
 
 	result, err = cache.Get("test")
 	requireNoError(t, err)
-	requireEqual(t, result, 4)
+	requireEqual(t, 4, result)
 }
 
 func requireError(t *testing.T, err error) {

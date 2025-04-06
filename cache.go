@@ -25,6 +25,7 @@
 package cache
 
 import (
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -121,7 +122,7 @@ func (c *Cache[K, V]) Get(key K, ttl ...time.Duration) (V, error) {
 //   - When ttl is negative, the value will be cached forever.
 func (c *Cache[K, V]) Set(key K, value V, ttl ...time.Duration) {
 	if !isZeroTTL(ttl...) {
-		updateItem(key, value, c.getItem(key), firstOrDefault(c.defaultTTL, ttl...).Nanoseconds())
+		setItem(c.getItem(key), value, firstOrDefault(c.defaultTTL, ttl...).Nanoseconds())
 	}
 }
 
@@ -148,16 +149,23 @@ func now() int64 {
 	return time.Now().UnixNano()
 }
 
-func updateItem[K comparable, V any](key K, val V, item *cacheItem[V], ttl int64) {
+func setItem[V any](item *cacheItem[V], val V, ttl int64) {
 	item.mu.Lock()
 	defer item.mu.Unlock()
 
 	item.val = val
-	item.expiration.Store(now() + ttl)
+	if ttl < 0 {
+		item.expiration.Store(math.MaxInt64)
+	} else {
+		item.expiration.Store(now() + ttl)
+	}
 }
 
 func getAndUpdateItemFromQuery[K comparable, V any](key K, item *cacheItem[V], query func(key K) (V, error), ttl int64) (V, error) {
-	nowTime := now()
+	var (
+		nowTime = now()
+	)
+
 	if item.expiration.Load() > nowTime {
 		return item.val, nil
 	}
@@ -175,6 +183,10 @@ func getAndUpdateItemFromQuery[K comparable, V any](key K, item *cacheItem[V], q
 	}
 
 	item.val = val
-	item.expiration.Store(now() + ttl)
+	if ttl < 0 {
+		item.expiration.Store(math.MaxInt64)
+	} else {
+		item.expiration.Store(now() + ttl)
+	}
 	return val, nil
 }
