@@ -105,9 +105,9 @@ func (c *Cache[K, V]) getItem(key K) *cacheItem[V] {
 // If the value is not in the cache, the query function will be called to get the value.
 // The value will be cached and returned.
 //
-// Parameters:
-//   - key: The key of the value to retrieve.
-//   - ttl: The TTL for the value. If not provided, the default TTL will be used.
+//   - When ttl is not provided, the default TTL will be used.
+//   - When ttl is zero, the value will never be cached.
+//   - When ttl is negative, the value will be cached forever.
 func (c *Cache[K, V]) Get(key K, ttl ...time.Duration) (V, error) {
 	return getAndUpdateItemFromQuery(key, c.getItem(key), c.query, firstOrDefault(c.defaultTTL, ttl...).Nanoseconds())
 }
@@ -116,10 +116,9 @@ func (c *Cache[K, V]) Get(key K, ttl ...time.Duration) (V, error) {
 // If a TTL is provided, the value will be cached with that TTL.
 // If no TTL is provided, the default TTL will be used.
 //
-// Parameters:
-//   - key: The key of the value to set.
-//   - value: The value to set in the cache.
-//   - ttl: The TTL for the value. If not provided, the default TTL will be used.
+//   - When ttl is not provided, the default TTL will be used.
+//   - When ttl is zero, the value will never be cached.
+//   - When ttl is negative, the value will be cached forever.
 func (c *Cache[K, V]) Set(key K, value V, ttl ...time.Duration) {
 	if !isZeroTTL(ttl...) {
 		updateItem(key, value, c.getItem(key), firstOrDefault(c.defaultTTL, ttl...).Nanoseconds())
