@@ -61,6 +61,9 @@ func main() {
 
 	// Set a value with custom TTL
 	c.Set("shortlived", 100, 10*time.Second)
+
+	// Delete a value from the cache
+	c.Delete("count")
 }
 ```
 
@@ -78,6 +81,13 @@ c := cache.New[string, int](
 
 // Get with custom TTL for this specific request
 val, err := c.Get("key", 30*time.Second)
+
+// TTL Behavior:
+// - When ttl is not provided, the default TTL will be used
+// - When ttl is zero, the value will never be cached
+// - When ttl is negative, the value will be cached forever
+val, err = c.Get("permanentKey", -1*time.Second) // Cached forever
+c.Set("temporaryKey", 100, 0)                    // Never cached
 ```
 
 ## Thread Safety
