@@ -11,4 +11,4 @@ go.work
 # Others
 *.yaml
 *.build
-Makefile
+makefile
